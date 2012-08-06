@@ -47,7 +47,7 @@ const
   BSON_BOOL_TRUE    = $01;
 
 const
-  nullterm          : char = #0;
+  nullterm          : AnsiChar = #0;
 
 type
   EBSONException = class( Exception );
@@ -106,7 +106,7 @@ type
     function GetCount: integer;
   public
     constructor Create;
-    destructor Free;
+    destructor Destroy; override;
 
     procedure Clear;
     procedure ReadStream( F: TStream );
@@ -226,7 +226,7 @@ type
     FData: TBSONDocument;
   public
     constructor Create;
-    destructor Free;
+    destructor Destroy; override;
     function GetSize: longint; override;
 
     function ToString: string; override;
@@ -243,7 +243,7 @@ type
     function ReadItem( idx: integer ): TBSONItem; override;
   public
     constructor Create;
-    destructor Free;
+    destructor Destroy; override;
     function GetSize: longint; override;
 
     function ToString: string; override;
@@ -272,7 +272,7 @@ type
     FData: Pointer;
   public
     constructor Create;
-    destructor Free;
+    destructor Destroy; override;
     function GetSize: longint; override;
 
     function ToString: string; override;
@@ -332,7 +332,7 @@ type
     FScope: TBSONDocument;
   public
     constructor Create;
-    destructor Free;
+    destructor Destroy; override;
     function GetSize: longint; override;
 
     function ToString: string; override;
@@ -395,9 +395,11 @@ begin
   SetLength( FItems, 0 );
 end;
 
-destructor TBSONDocument.Free;
+destructor TBSONDocument.Destroy;
 begin
   Clear;
+
+  inherited Destroy;
 end;
 
 function TBSONDocument.GetCount: integer;
@@ -463,8 +465,11 @@ var
   f                 : TFileStream;
 begin
   f := TFileStream.Create( filename, fmOpenRead );
+  try
   ReadStream( f );
+  finally
   f.Free;
+  end;
 end;
 
 procedure TBSONDocument.ReadStream( F: TStream );
@@ -516,8 +521,11 @@ begin
 {$ELSE}
   f := TFileStream.Create( FileCreate( filename ) );
 {$ENDIF}
+  try
   WriteStream( f );
+  finally
   f.Free;
+  end;
 end;
 
 procedure TBSONDocument.SetValue( Name: string; Value: TBSONItem );
@@ -953,9 +961,11 @@ begin
   FData := TBSONDocument.Create;
 end;
 
-destructor TBSONDocumentItem.Free;
+destructor TBSONDocumentItem.Destroy;
 begin
   FData.Free;
+
+  inherited Destroy;
 end;
 
 function TBSONDocumentItem.GetSize: longint;
@@ -1000,9 +1010,11 @@ begin
   FData := TBSONDocument.Create;
 end;
 
-destructor TBSONArrayItem.Free;
+destructor TBSONArrayItem.Destroy;
 begin
   FData.Free;
+
+  inherited Destroy;
 end;
 
 function TBSONArrayItem.GetSize: longint;
@@ -1216,10 +1228,13 @@ var
 begin
   Result := TBSONBinaryItem.Create;
   ms := TMemoryStream.Create;
+  try
   WriteStream( ms );
   ms.Seek( 0, soFromBeginning );
   Result.ReadStream( ms );
+  finally
   ms.Free;
+  end;
 end;
 
 constructor TBSONBinaryItem.Create;
@@ -1230,11 +1245,12 @@ begin
   eltype := BSON_BINARY;
 end;
 
-destructor TBSONBinaryItem.Free;
+destructor TBSONBinaryItem.Destroy;
 begin
-  if FLen <> 0 then begin
+  if FLen <> 0 then
     FreeMem( FData );
-  end;
+
+  inherited Destroy;
 end;
 
 function TBSONBinaryItem.GetSize: longint;
@@ -1247,7 +1263,7 @@ begin
   f.Read( FLen, sizeof( integer ) );
   f.Read( FSubtype, sizeof( byte ) );
   GetMem( FData, FLen );
-  f.Read( FData, Flen );
+  f.Read( FData^, Flen );
 end;
 
 function TBSONBinaryItem.ToString: string;
@@ -1260,10 +1276,12 @@ begin
   f.Write( eltype, sizeof( byte ) );
   f.Write( elname[1], length( elname ) );
   f.Write( nullterm, sizeof( nullterm ) );
+
   f.Write( FLen, sizeof( integer ) );
   f.Write( FSubtype, sizeof( byte ) );
-  f.Write( FData, FLen );
+  f.Write( FData^, FLen );
 end;
+
 
 { TBSONScopedJSItem }
 
@@ -1285,9 +1303,11 @@ begin
   FScope := TBSONDocument.Create;
 end;
 
-destructor TBSONScopedJSItem.Free;
+destructor TBSONScopedJSItem.Destroy;
 begin
   FScope.Free;
+
+  inherited Destroy;
 end;
 
 function TBSONScopedJSItem.GetSize: longint;
